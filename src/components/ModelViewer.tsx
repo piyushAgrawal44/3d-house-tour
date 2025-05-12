@@ -1,10 +1,11 @@
-import { useGLTF, OrbitControls, Environment, Sky } from '@react-three/drei';
+import { useGLTF, OrbitControls, Environment, Sky, useProgress } from '@react-three/drei';
 import { useEffect, useRef, useState } from 'react';
-import { Canvas, useThree, useFrame, useLoader,  } from '@react-three/fiber';
+import { Canvas, useThree, useFrame, useLoader, } from '@react-three/fiber';
 import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import ModelDialog from './ModalDialog';
-
+useGLTF.preload('/models/city.glb');
+useGLTF.preload('/models/burj_building.glb');
 interface HoverInfo {
   name: string;
   type: string;
@@ -12,7 +13,6 @@ interface HoverInfo {
   color: string;
   position: string;
   distance: string;
-  mesh: THREE.Mesh;
 }
 
 interface ModelSceneProps {
@@ -20,8 +20,20 @@ interface ModelSceneProps {
   setIsDialogOpen: any;
 }
 
+function PageLoader() {
+  const { progress } = useProgress();
+
+  return (
+    <div className="fixed w-full h-full inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="w-16 h-16 border-4 border-blue-500 border-dashed rounded-full animate-spin"></div>
+        <p className="text-white text-lg">{Math.floor(progress)}% loading</p>
+      </div>
+    </div>
+  );
+}
 const Grass = () => {
-  const grassTextureUrl='/textures/grass.jpeg'
+  const grassTextureUrl = '/textures/grass.jpeg'
   const texture = useLoader(THREE.TextureLoader, grassTextureUrl);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(100, 100);
@@ -41,7 +53,7 @@ function ModelScene({ setHoverInfo, setIsDialogOpen }: ModelSceneProps) {
   const raycaster = useRef(new THREE.Raycaster());
   const mouse = useRef(new THREE.Vector2());
   const hoveredMeshRef = useRef<THREE.Mesh | null>(null);
-  const originalMaterialRef:any = useRef<THREE.Material | null>(null);
+  const originalMaterialRef: any = useRef<THREE.Material | null>(null);
   const { camera, gl } = useThree();
 
   const highlightMaterial = new THREE.MeshStandardMaterial({
@@ -51,7 +63,7 @@ function ModelScene({ setHoverInfo, setIsDialogOpen }: ModelSceneProps) {
     opacity: 0.7,
   });
 
-  
+
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -123,7 +135,6 @@ function ModelScene({ setHoverInfo, setIsDialogOpen }: ModelSceneProps) {
           color,
           position: `X: ${hovered.position.x.toFixed(2)}, Y: ${hovered.position.y.toFixed(2)}, Z: ${hovered.position.z.toFixed(2)}`,
           distance: intersects[0].distance.toFixed(2),
-          mesh: hovered.clone(), // clone for preview
         });
       }
     }
@@ -165,7 +176,7 @@ export default function ModelViewer() {
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(true)
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       setMousePosition({ x: event.clientX, y: event.clientY });
@@ -185,9 +196,12 @@ export default function ModelViewer() {
     zIndex: 9999,
   };
 
+
   return (
     <>
-      <Canvas camera={{ position: [0, 22, 100], fov: 50 }}>
+      {isLoading && <PageLoader />}
+
+      <Canvas onCreated={() => setIsLoading(false)} camera={{ position: [0, 22, 100], fov: 50 }}>
         <Sky distance={450000} sunPosition={[5, 1, 8]} inclination={0} azimuth={0.25} />
         <Grass />
         <CityScene />
@@ -197,6 +211,8 @@ export default function ModelViewer() {
         <ModelScene setHoverInfo={setHoverInfo} setIsDialogOpen={setIsDialogOpen} />
         <OrbitControls />
       </Canvas>
+
+
 
       {hoverInfo && createPortal(
         <div style={panelStyle}>

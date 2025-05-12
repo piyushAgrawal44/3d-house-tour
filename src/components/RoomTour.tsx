@@ -1,4 +1,4 @@
-import { Environment, OrbitControls } from "@react-three/drei";
+import { Environment, OrbitControls, useProgress } from "@react-three/drei";
 import { Canvas, useFrame, type Camera } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -7,6 +7,19 @@ import { OrbitControls as ThreeOrbitControls } from "three/examples/jsm/Addons.j
 import { CameraController } from "./CameraController";
 import * as THREE from "three";
 
+
+function PageLoader() {
+    const { progress } = useProgress();
+
+    return (
+        <div className="fixed w-full h-full inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+            <div className="flex flex-col items-center space-y-4">
+                <div className="w-16 h-16 border-4 border-blue-500 border-dashed rounded-full animate-spin"></div>
+                <p className="text-white text-lg">{Math.floor(progress)}% loading</p>
+            </div>
+        </div>
+    );
+}
 
 function AnimatedCircle({
     position,
@@ -55,7 +68,7 @@ function CameraMover({
     controlsRef: React.RefObject<ThreeOrbitControls | any>;
 }) {
     useFrame((_, delta) => {
-        
+
         if (targetPosition && cameraRef.current) {
             const cam = cameraRef.current;
             const current = cam.position.clone();
@@ -92,9 +105,10 @@ const RoomTour = () => {
     const controlsRef = useRef<ThreeOrbitControls | any>(null);
     const cameraRef = useRef<Camera | null>(null);
     const [targetPosition, setTargetPosition] = useState<[number, number, number] | null>(null);
+    const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
-       setModelPath("/models/jungle_room.glb");
+        setModelPath("/models/jungle_room.glb");
     }, [params]);
 
     const stopMoving = () => setMoveDirection("");
@@ -104,17 +118,19 @@ const RoomTour = () => {
         [-85, 22, -5],
         [-80, 2, -55],
         [105, 2, 5],
-        
+
     ];
 
-    
+
 
     return (
         <div className="canvas-container" style={{ height: "100vh", position: "relative" }}>
+            {isLoading && <PageLoader />}
             {modelPath && (
                 <Canvas
-                    camera={{ position: [90, 2, 80], fov: 50 }}
-                    onCreated={({ camera }) => (cameraRef.current = camera)}
+
+                    camera={{ position: [90, 30, 80], fov: 50 }}
+                    onCreated={({ camera }) => { cameraRef.current = camera; setIsLoading(false) }}
                 >
                     <ambientLight intensity={0.5} />
                     <directionalLight position={[5, 5, 5]} intensity={1} />
