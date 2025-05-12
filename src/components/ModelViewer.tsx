@@ -1,10 +1,9 @@
 import { useGLTF, OrbitControls, Environment, Sky } from '@react-three/drei';
-import { useEffect, useRef, useState, type JSX } from 'react';
-import { Canvas, useThree, useFrame, useLoader } from '@react-three/fiber';
+import { useEffect, useRef, useState } from 'react';
+import { Canvas, useThree, useFrame, useLoader,  } from '@react-three/fiber';
 import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import ModelDialog from './ModalDialog';
-import grassTextureUrl from '/textures/grass.jpeg';
 
 interface HoverInfo {
   name: string;
@@ -22,6 +21,7 @@ interface ModelSceneProps {
 }
 
 const Grass = () => {
+  const grassTextureUrl='/textures/grass.jpeg'
   const texture = useLoader(THREE.TextureLoader, grassTextureUrl);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(100, 100);
@@ -34,8 +34,10 @@ const Grass = () => {
   );
 };
 
+
+
 function ModelScene({ setHoverInfo, setIsDialogOpen }: ModelSceneProps) {
-  const { scene } = useGLTF('/models/modern_building.glb') as { scene: THREE.Group };
+  const { scene } = useGLTF('/models/burj_building.glb') as { scene: THREE.Group };
   const raycaster = useRef(new THREE.Raycaster());
   const mouse = useRef(new THREE.Vector2());
   const hoveredMeshRef = useRef<THREE.Mesh | null>(null);
@@ -49,26 +51,7 @@ function ModelScene({ setHoverInfo, setIsDialogOpen }: ModelSceneProps) {
     opacity: 0.7,
   });
 
-  // Function to create duplicates of the main building
-  const createBuildingCluster = (numberOfBuildings: number, radius: number) => {
-    const buildings: JSX.Element[] = [];
-    const buildingClone = scene.clone(); // clone the scene once
-
-    for (let i = 0; i < numberOfBuildings; i++) {
-      const angle = (i / numberOfBuildings) * Math.PI * 2; // equally spaced in a circle
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-
-      // Clone the building and set its position
-      const buildingInstance = buildingClone.clone();
-      buildingInstance.position.set(x, 0, z);
-
-      buildings.push(
-        <primitive key={i} object={buildingInstance} scale={1.5} />
-      );
-    }
-    return buildings;
-  };
+  
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -146,15 +129,37 @@ function ModelScene({ setHoverInfo, setIsDialogOpen }: ModelSceneProps) {
     }
   });
 
-  const buildings = createBuildingCluster(2, 70); // 5 buildings around the main one
-
   return (
     <>
-      {buildings}
       <primitive object={scene} scale={1.5} />
     </>
   );
 }
+
+
+function CityScene() {
+  const { scene } = useGLTF('/models/city.glb');
+
+  // ⚠️ This part requires tuning for every city model
+  useEffect(() => {
+    scene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+  }, [scene]);
+
+  return (
+    <primitive
+      object={scene}
+      scale={[0.5, 0.5, 0.5]}     // ⬅️ Tune this
+      position={[37, -2, -133]}      // ⬅️ Tune this
+      rotation={[0, Math.PI, 0]}   // ⬅️ Optional: Adjust orientation
+    />
+  );
+}
+
 
 export default function ModelViewer() {
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
@@ -182,9 +187,10 @@ export default function ModelViewer() {
 
   return (
     <>
-      <Canvas camera={{ position: [0, 2, 50], fov: 50 }}>
+      <Canvas camera={{ position: [0, 22, 100], fov: 50 }}>
         <Sky distance={450000} sunPosition={[5, 1, 8]} inclination={0} azimuth={0.25} />
         <Grass />
+        <CityScene />
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 5, 5]} intensity={1} />
         <Environment preset="city" />
