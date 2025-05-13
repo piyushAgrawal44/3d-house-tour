@@ -1,12 +1,13 @@
 import { useGLTF, OrbitControls, Environment, Sky, useProgress } from '@react-three/drei';
-import { useEffect, useRef, useState } from 'react';
-import { Canvas, useThree, useFrame, useLoader, } from '@react-three/fiber';
+import { useEffect, useState } from 'react';
+import { Canvas, useLoader, } from '@react-three/fiber';
 import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import ModelDialog from './ModalDialog';
-useGLTF.preload('/models/city.glb');
-useGLTF.preload('/models/burj_building.glb');
-interface HoverInfo {
+import FBXModel from './FBXModel';
+useGLTF.preload('/models/european_city.glb');
+useGLTF.preload('/models/suburban_house.glb');
+export interface HoverInfo {
   name: string;
   type: string;
   materialType: string;
@@ -15,10 +16,6 @@ interface HoverInfo {
   distance: string;
 }
 
-interface ModelSceneProps {
-  setHoverInfo: React.Dispatch<React.SetStateAction<HoverInfo | null>>;
-  setIsDialogOpen: any;
-}
 
 function PageLoader() {
   const { progress } = useProgress();
@@ -48,108 +45,11 @@ const Grass = () => {
 
 
 
-function ModelScene({ setHoverInfo, setIsDialogOpen }: ModelSceneProps) {
-  const { scene } = useGLTF('/models/burj_building.glb') as { scene: THREE.Group };
-  const raycaster = useRef(new THREE.Raycaster());
-  const mouse = useRef(new THREE.Vector2());
-  const hoveredMeshRef = useRef<THREE.Mesh | null>(null);
-  const originalMaterialRef: any = useRef<THREE.Material | null>(null);
-  const { camera, gl } = useThree();
 
-  const highlightMaterial = new THREE.MeshStandardMaterial({
-    color: '#4FC3F7',
-    emissive: '#4FC3F7',
-    transparent: true,
-    opacity: 0.7,
-  });
-
-
-
-  useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      const { clientX, clientY } = event;
-      const { width, height, left, top } = gl.domElement.getBoundingClientRect();
-
-      mouse.current.x = ((clientX - left) / width) * 2 - 1;
-      mouse.current.y = -((clientY - top) / height) * 2 + 1;
-
-      raycaster.current.setFromCamera(mouse.current, camera);
-      const intersects = raycaster.current.intersectObjects(scene.children, true);
-
-      if (intersects.length > 0) {
-        console.log("first", intersects);
-        setIsDialogOpen(true);
-      }
-    };
-
-    const handleMouseMove = (event: MouseEvent) => {
-      const { clientX, clientY } = event;
-      const { width, height, left, top } = gl.domElement.getBoundingClientRect();
-
-      mouse.current.x = ((clientX - left) / width) * 2 - 1;
-      mouse.current.y = -((clientY - top) / height) * 2 + 1;
-    };
-
-    gl.domElement.addEventListener('dblclick', handleClick);
-    gl.domElement.addEventListener('mousemove', handleMouseMove);
-
-    return () => {
-      gl.domElement.removeEventListener('dblclick', handleClick);
-      gl.domElement.removeEventListener('mousemove', handleMouseMove);
-    };
-  }, [gl]);
-
-  useFrame(() => {
-    raycaster.current.setFromCamera(mouse.current, camera);
-    const intersects = raycaster.current.intersectObjects(scene.children, true);
-
-    if (intersects.length === 0 || intersects[0].object !== hoveredMeshRef.current) {
-      if (hoveredMeshRef.current && originalMaterialRef.current) {
-        hoveredMeshRef.current.material = originalMaterialRef.current;
-        hoveredMeshRef.current = null;
-        originalMaterialRef.current = null;
-        setHoverInfo(null);
-      }
-    }
-
-    if (intersects.length > 0) {
-      const hovered = intersects[0].object as THREE.Mesh;
-
-      if (hovered !== hoveredMeshRef.current && hovered.isMesh) {
-        if (hoveredMeshRef.current && originalMaterialRef.current) {
-          hoveredMeshRef.current.material = originalMaterialRef.current;
-        }
-
-        hoveredMeshRef.current = hovered;
-        originalMaterialRef.current = hovered.material;
-        hovered.material = highlightMaterial;
-
-        const material = originalMaterialRef.current as THREE.Material & { color?: THREE.Color };
-        const materialType = material.type;
-        const color = material.color ? `#${material.color.getHexString()}` : 'N/A';
-
-        setHoverInfo({
-          name: hovered.name || 'Unnamed Object',
-          type: hovered.type,
-          materialType,
-          color,
-          position: `X: ${hovered.position.x.toFixed(2)}, Y: ${hovered.position.y.toFixed(2)}, Z: ${hovered.position.z.toFixed(2)}`,
-          distance: intersects[0].distance.toFixed(2),
-        });
-      }
-    }
-  });
-
-  return (
-    <>
-      <primitive object={scene} scale={1.5} />
-    </>
-  );
-}
 
 
 function CityScene() {
-  const { scene } = useGLTF('/models/city.glb');
+  const { scene } = useGLTF('/models/european_city.glb');
 
   // ⚠️ This part requires tuning for every city model
   useEffect(() => {
@@ -165,7 +65,7 @@ function CityScene() {
     <primitive
       object={scene}
       scale={[0.5, 0.5, 0.5]}     // ⬅️ Tune this
-      position={[37, -2, -133]}      // ⬅️ Tune this
+      position={[37, 0, -20]}      // ⬅️ Tune this
       rotation={[0, Math.PI, 0]}   // ⬅️ Optional: Adjust orientation
     />
   );
@@ -201,15 +101,23 @@ export default function ModelViewer() {
     <>
       {isLoading && <PageLoader />}
 
-      <Canvas onCreated={() => setIsLoading(false)} camera={{ position: [0, 22, 100], fov: 50 }}>
+      <Canvas onCreated={() => setIsLoading(false)} camera={{ position: [10, 22, 10], fov: 50 }}>
         <Sky distance={450000} sunPosition={[5, 1, 8]} inclination={0} azimuth={0.25} />
         <Grass />
         <CityScene />
-        <ambientLight intensity={0.5} />
+        <ambientLight intensity={1.5} />
         <directionalLight position={[5, 5, 5]} intensity={1} />
-        <Environment preset="city" />
-        <ModelScene setHoverInfo={setHoverInfo} setIsDialogOpen={setIsDialogOpen} />
-        <OrbitControls />
+        <Environment preset="city" background />
+        {/* <GlbModel setHoverInfo={setHoverInfo} setIsDialogOpen={setIsDialogOpen} /> */}
+
+        <FBXModel path="/models/house.fbx" scale={0.001}
+          setHoverInfo={setHoverInfo} setIsDialogOpen={setIsDialogOpen} />
+        <OrbitControls
+          minPolarAngle={Math.PI / 2.15}
+          maxPolarAngle={Math.PI / 2.15}
+          enableZoom={true}
+          enablePan={false}
+        />
       </Canvas>
 
 
